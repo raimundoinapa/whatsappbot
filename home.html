@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whatsapp Bot</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <style>
+        #qr { display: inline-block; }
+    </style>
+    <div id="uas"></div>
+    <div id="qr"></div>
+    <script>
+        (async () => {
+            const q = (e, all = false) => ! all ? document.querySelector(e) : [...document.querySelectorAll(e)];
+
+            const sleep = (t) => { return new Promise((resolve) => { setTimeout(() => { resolve(true); }, t); }); }
+
+            const qrContainer = q('#qr');
+            const uasContainer = q('#uas');
+
+            const eventManager = (evt) => {
+                console.dir(evt);
+
+                if (! evt?.data) {
+                    console.log('La data del evento esta vacía');
+
+                    return false;
+                }
+
+                const dataStr = evt.data;
+                const dataObj = JSON.parse(dataStr);
+        
+                if ('qr' == dataObj?.event) {
+                    qrContainer.innerHTML = '';
+
+                    new QRCode(qrContainer, dataObj.qr);
+                }
+
+                if ('disconnected' == dataObj?.event) {
+                    if ('Max qrcode retries reached' == dataObj?.reason) {
+                        qrContainer.innerHTML = 'Se agotó el número de intentos';
+
+                        return false;
+                    }
+
+                    qrContainer.innerHTML = '';
+
+                    const auDiv = document.createElement('div');
+
+                    auDiv.id = dataObj.clientInfo.me.user;
+                    auDiv.innerHTML = dataStr;
+
+                    uasContainer.appendChild(auDiv);
+                }
+
+                if ('ready' == dataObj?.event) {
+                    qrContainer.innerHTML = '';
+
+                    const auDiv = document.createElement('div');
+
+                    auDiv.id = dataObj.clientInfo.me.user;
+                    auDiv.innerHTML = dataStr;
+
+                    uasContainer.appendChild(auDiv);
+                }
+            }
+
+            await new Promise((resolve) => {
+                let firstEvent = false;
+
+                new EventSource(`${window.location.origin}/events`).addEventListener('message', (evt) => {
+                    eventManager(evt);
+
+                    if (! firstEvent) {
+                        firstEvent = true;
+
+                        resolve(true);
+                    }
+                });
+            });
+    
+            try {
+                const ws = await fetch(`${window.location.origin}/getinstance`, {method: 'POST'});
+                const wsr = await ws.json();
+
+                console.log(wsr);
+            } catch (err) {
+                console.log(err);
+            }
+        })(); 
+    </script>
+</body>
+</html>
